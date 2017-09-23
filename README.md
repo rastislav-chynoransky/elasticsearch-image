@@ -1,3 +1,12 @@
+## DEPRECATED
+
+### Please note, this project is deprecated and no longer being maintained. Because of my limited time for make it work on upward version, and that is no very detail official plug-in guideline in E.S, not to mentioned E.S code is change so fast that usually the code is not backward compatible. 
+
+However, instead of implements it as plug-in, that is another way to do so [link](https://www.linkedin.com/pulse/hacking-elasticsearch-image-retrieval-ashwin-saval), the only down side is you need to write more low level code instead.
+
+----------
+
+
 Image Plugin for Elasticsearch
 ==============================
 
