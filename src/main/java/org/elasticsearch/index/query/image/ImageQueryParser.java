@@ -77,26 +77,30 @@ public class ImageQueryParser implements QueryParser {
                 if (token == XContentParser.Token.FIELD_NAME) {
                     currentFieldName = parser.currentName();
                 } else {
-                    if ("feature".equals(currentFieldName)) {
-                        featureEnum = FeatureEnum.getByName(parser.text());
-                    } else if ("image".equals(currentFieldName)) {
-                        image = parser.binaryValue();
-                    } else if ("hash".equals(currentFieldName)) {
-                        hashEnum = HashEnum.getByName(parser.text());
-                    } else if ("boost".equals(currentFieldName)) {
-                        boost = parser.floatValue();
-                    }else if ("index".equals(currentFieldName)) {
-                        lookupIndex = parser.text();
-                    } else if ("type".equals(currentFieldName)) {
-                        lookupType = parser.text();
-                    } else if ("field".equals(currentFieldName)) {
-                        field = parser.text();
-                    } else if ("id".equals(currentFieldName)) {
-                        lookupId = parser.text();
-                    } else if ("routing".equals(currentFieldName)) {
-                        lookupRouting = parser.textOrNull();
-                    } else {
-                        throw new QueryParsingException(parseContext, "[image] query does not support [" + currentFieldName + "]");
+                    try {
+                        if ("feature".equals(currentFieldName)) {
+                            featureEnum = FeatureEnum.getByName(parser.text());
+                        } else if ("image".equals(currentFieldName)) {
+                            image = parser.binaryValue();
+                        } else if ("hash".equals(currentFieldName)) {
+                            hashEnum = HashEnum.getByName(parser.text());
+                        } else if ("boost".equals(currentFieldName)) {
+                            boost = parser.floatValue();
+                        } else if ("index".equals(currentFieldName)) {
+                            lookupIndex = parser.text();
+                        } else if ("type".equals(currentFieldName)) {
+                            lookupType = parser.text();
+                        } else if ("field".equals(currentFieldName)) {
+                            field = parser.text();
+                        } else if ("id".equals(currentFieldName)) {
+                            lookupId = parser.text();
+                        } else if ("routing".equals(currentFieldName)) {
+                            lookupRouting = parser.textOrNull();
+                        } else {
+                            throw new QueryParsingException(parseContext, "[image] query does not support [" + currentFieldName + "]");
+                        }
+                    } catch (Exception e) {
+                        continue;
                     }
                 }
             }
