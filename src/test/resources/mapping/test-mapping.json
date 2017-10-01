@@ -12,8 +12,7 @@
                     },
                     "JCD": {
                         "hash": ["BIT_SAMPLING", "LSH"]
-                    },
-                    "FCTH": {}
+                    }
                 },
                 "metadata": {
                     "exif_ifd0.x_resolution": {
