@@ -1,65 +1,38 @@
-package org.elasticsearch.index.query.image;
+package org.elasticsearch.index.query.descriptor;
+
+import org.apache.lucene.index.*;
+import org.apache.lucene.search.*;
+import org.apache.lucene.util.ToStringUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.lucene.index.*;
-import org.apache.lucene.search.*;
-import org.apache.lucene.util.ToStringUtils;
-import net.semanticmetadata.lire.imageanalysis.features.LireFeature;
+public class DescriptorHashQuery extends Query {
 
-import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
-
-/**
- * Copied from {@link TermQuery}, query by hash first and only calculate score for matching docs
- */
-public class ImageHashQuery extends Query {
     private final Term term;
+    private double[] descriptor;
+    private String fieldName;
+    private DescriptorScoreCache descriptorScoreCache;
 
-    private String luceneFieldName;
-    private LireFeature lireFeature;
-    private ImageScoreCache imageScoreCache;
-    
-    public ImageHashQuery(Term t, String luceneFieldName, LireFeature lireFeature, ImageScoreCache imageScoreCache, float boost) {
+    public DescriptorHashQuery(Term t, double[] descriptor, float boost, String fieldName, DescriptorScoreCache descriptorScoreCache) {
         this.term = t;
-        this.luceneFieldName = luceneFieldName;
-        this.lireFeature = lireFeature;
-        this.imageScoreCache = imageScoreCache;
+        this.descriptor = descriptor;
+        this.fieldName = fieldName;
+        this.descriptorScoreCache = descriptorScoreCache;
         setBoost(boost);
     }
 
     @Override
     public Weight createWeight(IndexSearcher searcher, boolean needsScores) throws IOException {
-	
+
         final IndexReaderContext context = searcher.getTopReaderContext();
         final TermContext termState = TermContext.build(context, term);
-        
-        return new ImageHashWeight(searcher, needsScores, termState);
-    }
-    
-    @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof ImageHashQuery))
-            return false;
-        ImageHashQuery other = (ImageHashQuery)o;
-        return (this.getBoost() == other.getBoost())
-                && this.term.equals(other.term)
-                & luceneFieldName.equals(luceneFieldName)
-                && lireFeature.equals(lireFeature);
+
+        return new DescriptorHashWeight(termState);
     }
 
-    @Override
-    public int hashCode() {
-        int result = super.hashCode();
-        result = 31 * result + term.hashCode();
-        result = 31 * result + luceneFieldName.hashCode();
-        result = 31 * result + lireFeature.hashCode();
-        result = Float.floatToIntBits(getBoost()) ^ result;
-        return result;
-    }
-    
     @Override
     public String toString(String field) {
         StringBuilder buffer = new StringBuilder();
@@ -68,27 +41,22 @@ public class ImageHashQuery extends Query {
             buffer.append(":");
         }
         buffer.append(term.text());
-        buffer.append(";");
-        buffer.append(luceneFieldName);
-        buffer.append(",");
-        buffer.append(lireFeature.getClass().getSimpleName());
         buffer.append(ToStringUtils.boost(getBoost()));
         return buffer.toString();
     }
-    
-    
-    final class ImageHashWeight extends Weight 
+
+    final class DescriptorHashWeight extends Weight
     {
         private final TermContext termStates;
 
-        public ImageHashWeight(IndexSearcher searcher, boolean needsScores, TermContext termStates) throws IOException {
-            super(ImageHashQuery.this);
+        public DescriptorHashWeight(TermContext termStates) throws IOException {
+            super(DescriptorHashQuery.this);
             assert termStates != null : "TermContext must not be null";
             this.termStates = termStates;
         }
 
         @Override
-        public String toString() { return "weight(" + ImageHashQuery.this + ")"; }
+        public String toString() { return "weight(" + DescriptorHashQuery.this + ")"; }
 
         @Override
         public float getValueForNormalization() {
@@ -108,7 +76,7 @@ public class ImageHashQuery extends Query {
             }
             PostingsEnum docs = termsEnum.postings( null);
             assert docs != null;
-            return new ImageHashScorer(this, docs, context.reader());
+            return new DescriptorHashScorer(this, docs, context.reader());
         }
 
         private TermsEnum getTermsEnum(LeafReaderContext context) throws IOException {
@@ -130,9 +98,8 @@ public class ImageHashQuery extends Query {
         public Explanation explain(LeafReaderContext context, int doc) throws IOException {
             Scorer scorer = scorer(context);
             boolean exists = (scorer != null && scorer.iterator().advance(doc) == doc);
-            //scorer.
 
-            if(exists){
+            if (exists) {
                 float score = scorer.score();
                 List<Explanation> details=new ArrayList<>();
                 if (getBoost() != 1.0f) {
@@ -140,11 +107,10 @@ public class ImageHashQuery extends Query {
                     score = score / getBoost();
                 }
                 details.add(Explanation.match(score ,"image score (1/distance)"));
-                return Explanation.match(
-                         score, ImageHashQuery.this.toString() + ", product of:",details);
+                return Explanation.match(score, DescriptorHashWeight.this.toString() + ", product of:",details);
 
-            }else{
-                return Explanation.noMatch(ImageHashQuery.this.toString() + " doesn't match id " + doc);
+            } else{
+                return Explanation.noMatch(DescriptorHashWeight.this.toString() + " doesn't match id " + doc);
             }
         }
 
@@ -153,15 +119,14 @@ public class ImageHashQuery extends Query {
 
         }
     }
-    
-    
-    final class ImageHashScorer extends AbstractImageScorer 
+
+    final class DescriptorHashScorer extends AbstractDescriptorScorer
     {
         private final PostingsEnum docsEnum;
         private final IndexReader reader;
 
-        ImageHashScorer(Weight weight, PostingsEnum td, IndexReader reader) {
-            super(weight, luceneFieldName, lireFeature, reader, ImageHashQuery.this.getBoost());
+        DescriptorHashScorer(Weight weight, PostingsEnum td, IndexReader reader) {
+            super(weight, descriptor, reader, DescriptorHashQuery.this.getBoost(), fieldName);
             this.docsEnum = td;
             this.reader = reader;
         }
@@ -173,14 +138,14 @@ public class ImageHashQuery extends Query {
 
         @Override
         public float score() throws IOException {
-            assert docID() != NO_MORE_DOCS;
+            assert docID() != DocIdSetIterator.NO_MORE_DOCS;
             int docId = docID();
             String cacheKey = reader.toString() + ":" + docId;
-            if (imageScoreCache.getScore(cacheKey) != null) {
+            if (descriptorScoreCache.getScore(cacheKey) != null) {
                 return 0f;  // BooleanScorer will add all score together, return 0 for docs already processed
             }
             float score = super.score();
-            imageScoreCache.setScore(cacheKey, score);
+            descriptorScoreCache.setScore(cacheKey, score);
             return score;
         }
 

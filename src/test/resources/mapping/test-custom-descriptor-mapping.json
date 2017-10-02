@@ -1,0 +1,10 @@
+{
+  "test": {
+    "properties": {
+      "test_descriptor": {
+        "type": "descriptor",
+        "hash": "BIT_SAMPLING"
+      }
+    }
+  }
+}
