@@ -13,8 +13,10 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.mapper.image.FeatureEnum;
 import org.elasticsearch.index.mapper.image.HashEnum;
 import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.TermQueryBuilder;
+import org.elasticsearch.index.query.descriptor.DescriptorQueryBuilder;
 import org.elasticsearch.index.query.image.ImageQueryBuilder;
 import org.elasticsearch.plugin.image.ImagePlugin;
 import org.elasticsearch.plugins.Plugin;
@@ -72,6 +74,32 @@ public class ImageIntegrationTests extends ESIntegTestCase
                 .put("index.number_of_shards", 5)
                 .put("index.image.use_thread_pool", randomBoolean())
             .build();
+    }
+
+    @Test
+    public void test_custom_descriptor() throws Exception {
+        String mapping = copyToStringFromClasspath("/mapping/test-custom-descriptor-mapping.json");
+        client().admin().indices().putMapping(putMappingRequest(INDEX_NAME).type(DOC_TYPE_NAME).source(mapping)).actionGet();
+
+        IndexResponse response;
+
+        double[] descriptor1 = {1, 2, 3, 4, 5};
+        double[] descriptor2 = {2, 2, 3, 4, 5};
+
+        response = index(INDEX_NAME, DOC_TYPE_NAME, jsonBuilder().startObject().field("descriptor", descriptor1).endObject());
+        String id1 = response.getId();
+
+        response = index(INDEX_NAME, DOC_TYPE_NAME, jsonBuilder().startObject().field("descriptor", descriptor2).endObject());
+        String id2 = response.getId();
+
+        refresh();
+
+        HashEnum hash = HashEnum.BIT_SAMPLING;
+
+        QueryBuilder queryBuilder = new DescriptorQueryBuilder("img").hash(hash.name()).descriptor(descriptor1);
+
+        SearchResponse searchResponse = client().prepareSearch(INDEX_NAME).setTypes(DOC_TYPE_NAME).setQuery(queryBuilder).get();
+        assertNoFailures(searchResponse);
     }
 
     @Test

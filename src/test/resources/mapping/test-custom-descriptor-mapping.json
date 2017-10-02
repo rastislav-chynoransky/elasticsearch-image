@@ -1,0 +1,12 @@
+{
+  "test": {
+    "properties": {
+      "img": {
+        "type": "descriptor"
+      },
+      "skuska": {
+        "type": "string"
+      }
+    }
+  }
+}
