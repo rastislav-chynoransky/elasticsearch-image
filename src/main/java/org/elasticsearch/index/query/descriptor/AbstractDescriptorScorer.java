@@ -55,7 +55,8 @@ public abstract class AbstractDescriptorScorer extends Scorer {
             }
             return (float)score * boost;
         } catch (Exception e) {
-            throw new ElasticsearchImageProcessException("Failed to calculate score", e);
+            //throw new ElasticsearchImageProcessException("Failed to calculate score", e);
+            return 0;
         }
     }
 

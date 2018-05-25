@@ -73,7 +73,7 @@ public class ImageIntegrationTests extends ESIntegTestCase
                 .put("index.number_of_replicas", 0)
                 .put("index.number_of_shards", 5)
                 .put("index.image.use_thread_pool", randomBoolean())
-            .build();
+                .build();
     }
 
     @Test
@@ -83,8 +83,8 @@ public class ImageIntegrationTests extends ESIntegTestCase
 
         IndexResponse response;
 
-        double[] descriptor1 = {1, 2, 3, 4, 5};
-        double[] descriptor2 = {2, 2, 3, 4, 5};
+        double[] descriptor1 = {93.2898506328,1.60547220488,9.82604905671,5.47926835962,93.2898506328,1.60547220488,9.82604905671,5.47926835962,61.7219750361,7.35531210836,11.5955937097,6.07399126872,61.7219750361,7.35531210836,11.5955937097,6.07399126872,39.1968826395,5.20884575485,8.37111025775,5.75187249182,39.1968826395,5.20884575485,8.37111025775,5.75187249182};
+        double[] descriptor2 = {91.9514592393,1.44932896695,14.1452503321,6.62480241627,91.9514592393,1.44932896695,14.1452503321,6.62480241627,69.301305481,-2.19131447809,6.18487260201,4.62912431105,47.8153120888,-1.38346268762,2.63372212916,2.11236387224,28.9951402701,2.5396739384,0.917429499627,5.4973739121,28.9951402701,2.5396739384,0.917429499627,5.4973739121};
 
         HashEnum hash = HashEnum.BIT_SAMPLING;
 
@@ -101,6 +101,35 @@ public class ImageIntegrationTests extends ESIntegTestCase
         SearchResponse searchResponse = client().prepareSearch(INDEX_NAME).setTypes(DOC_TYPE_NAME).setQuery(queryBuilder).setSize(2).get();
         assertNoFailures(searchResponse);
         assertThat("Should get all images", searchResponse.getHits().getTotalHits(), equalTo(2L));
+    }
+
+    @Test
+    public void test_null_descriptor() throws Exception {
+        String mapping = copyToStringFromClasspath("/mapping/test-custom-descriptor-mapping.json");
+        client().admin().indices().putMapping(putMappingRequest(INDEX_NAME).type(DOC_TYPE_NAME).source(mapping)).actionGet();
+
+        IndexResponse response;
+
+        double[] descriptor1 = {1,2,3,4,5};
+//        double[] descriptor2 = {1,2,3,4,6};
+
+        HashEnum hash = HashEnum.BIT_SAMPLING;
+
+        response = index(INDEX_NAME, DOC_TYPE_NAME, jsonBuilder().startObject().field("test_descriptor", descriptor1).endObject());
+        String id1 = response.getId();
+
+        response = index(INDEX_NAME, DOC_TYPE_NAME, jsonBuilder().startObject().nullField("test_descriptor").endObject());
+//        response = index(INDEX_NAME, DOC_TYPE_NAME, jsonBuilder().startObject().endObject());
+        String id2 = response.getId();
+
+        refresh();
+
+        QueryBuilder queryBuilder = new DescriptorQueryBuilder("test_descriptor").descriptor(descriptor1).hash(hash.name());
+
+        SearchResponse searchResponse = client().prepareSearch(INDEX_NAME).setTypes(DOC_TYPE_NAME).setQuery(queryBuilder).setSize(2).get();
+        assertNoFailures(searchResponse);
+        assertThat("Should return 1 result", searchResponse.getHits().getTotalHits(), equalTo(1L));
+        assertThat("Should return itself", searchResponse.getHits().hits()[0].getId(), equalTo(id1));
     }
 
     @Test
@@ -235,5 +264,5 @@ public class ImageIntegrationTests extends ESIntegTestCase
     public String copyToStringFromClasspath(String path) throws IOException {
         return copyToString(new InputStreamReader(getClass().getResource(path).openStream(), "UTF-8"));
     }
-    
+
 }
