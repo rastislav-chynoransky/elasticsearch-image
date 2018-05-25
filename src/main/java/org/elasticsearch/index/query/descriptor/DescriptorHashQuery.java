@@ -3,6 +3,7 @@ package org.elasticsearch.index.query.descriptor;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
 import org.apache.lucene.util.ToStringUtils;
+import org.elasticsearch.ElasticsearchImageProcessException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -144,9 +145,14 @@ public class DescriptorHashQuery extends Query {
             if (descriptorScoreCache.getScore(cacheKey) != null) {
                 return 0f;  // BooleanScorer will add all score together, return 0 for docs already processed
             }
-            float score = super.score();
-            descriptorScoreCache.setScore(cacheKey, score);
-            return score;
+
+            try {
+                float score = super.score();
+                descriptorScoreCache.setScore(cacheKey, score);
+                return score;
+            } catch (ElasticsearchImageProcessException e) {
+                return 0;
+            }
         }
 
         @Override
